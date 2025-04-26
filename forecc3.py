@@ -3,52 +3,40 @@ from prophet import Prophet
 import streamlit as st
 import matplotlib.pyplot as plt
 
-# --------------------------
-# Streamlit App Setup
-# --------------------------
+
 st.set_page_config(page_title="Personalised Gifts Forecast", layout="wide")
 st.title("🎁 Personalised Gifts Forecasting Dashboard")
 
-# Upload CSV
 uploaded = st.file_uploader("Upload CSV for Personalised Gifts", type="csv")
 if not uploaded:
     st.info("Please upload a CSV with fields: Order Date, Product Category, Quantity Sold, Price, etc.")
     st.stop()
 
-# Load Data
 df = pd.read_csv(uploaded, parse_dates=["Order Date"])
 
-# Validate required columns
 required_cols = ["Order Date", "Product Category", "Quantity Sold", "Price"]
 missing = [col for col in required_cols if col not in df.columns]
 if missing:
     st.error(f"Missing required columns: {', '.join(missing)}")
     st.stop()
 
-# Calculate Total Revenue per order
 df["Total Revenue"] = df["Quantity Sold"] * df["Price"]
 
-# --------------------------
-# Overall Revenue Forecast
-# --------------------------
+
 st.header("📈 Overall Sales Forecast (Total Revenue)")
 
-# Prepare daily revenue for Prophet
 daily_rev = df.groupby("Order Date").agg({"Total Revenue": "sum"}).reset_index()
 df_prophet = daily_rev.rename(columns={"Order Date": "ds", "Total Revenue": "y"})
 
-# Prophet forecasting
 model = Prophet(daily_seasonality=True)
 model.fit(df_prophet)
 
 future = model.make_future_dataframe(periods=180)
 forecast = model.predict(future)
 
-# Plot forecast
 fig1 = model.plot(forecast)
 st.pyplot(fig1)
 
-# Forecast Summary
 next_30 = forecast[forecast['ds'] > pd.Timestamp.today()].head(30)['yhat'].sum()
 next_180 = forecast[forecast['ds'] > pd.Timestamp.today()].head(180)['yhat'].sum()
 
@@ -56,9 +44,6 @@ st.subheader("📊 Forecast Summary")
 st.write(f"Projected Revenue (Next 30 Days): ₹{next_30:,.0f}")
 st.write(f"Projected Revenue (Next 6 Months): ₹{next_180:,.0f}")
 
-# --------------------------
-# Category-wise Quantity Forecast
-# --------------------------
 st.header("📦 Forecast: Quantity Sold by Category (Next 3 Months)")
 
 cat_forecasts = []
@@ -80,7 +65,6 @@ cat_df = pd.DataFrame(cat_forecasts)
 if not cat_df.empty:
     st.dataframe(cat_df.set_index("Product Category"))
 
-    # Pie chart
     fig2, ax2 = plt.subplots()
     ax2.pie(cat_df["Forecasted Quantity"], labels=cat_df["Product Category"], autopct="%1.1f%%", startangle=90)
     ax2.axis("equal")
@@ -88,9 +72,7 @@ if not cat_df.empty:
 else:
     st.warning("Insufficient data for category-wise forecasting.")
 
-# --------------------------
-# Additional Insights (Optional)
-# --------------------------
+
 st.header("📉 Optional Insights")
 
 if "Return Rate" in df.columns:
@@ -105,9 +87,6 @@ if "Review Rating" in df.columns:
 if "Shipping Time" in df.columns:
     st.write(f"Average Shipping Time: {df['Shipping Time'].mean():.1f} days")
 
-# --------------------------
-# Recommendations
-# --------------------------
 st.header("💡 Recommendations")
 st.write("- Prioritize categories with rising demand for inventory planning.")
 st.write("- Use repeat purchase and return rates to optimize retention strategies.")
